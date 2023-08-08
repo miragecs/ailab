@@ -1294,41 +1294,77 @@ class RealWaifuUpScaler(object):
 
 if __name__ == "__main__":
     ###########inference_img
-    import time, cv2,sys,pdb
+    import time, cv2,sys,pdb,shutil
     from time import time as ttime
-    for weight_path, scale in [("weights_v3/up2x-latest-denoise3x.pth", 2),("weights_v3/up3x-latest-denoise3x.pth", 3),("weights_v3/up4x-latest-denoise3x.pth", 4),("weights_pro/pro-denoise3x-up2x.pth", 2),("weights_pro/pro-denoise3x-up3x.pth", 3),]:
-        for tile_mode in [0,5]:
-            for cache_mode in [0,1,2,3]:
-                for alpha in [1]:
-                    weight_name=weight_path.split("/")[-1].split(".")[0]
-                    upscaler2x = RealWaifuUpScaler(scale, weight_path, half=True, device="cuda:0")
-                    input_dir="%s/inputs"%root_path
-                    output_dir="%s/output-dir-all-test"%root_path
-                    os.makedirs(output_dir,exist_ok=True)
-                    for name in os.listdir(input_dir):
-                        print(name)
-                        tmp = name.split(".")
-                        inp_path = os.path.join(input_dir, name)
-                        suffix = tmp[-1]
-                        prefix = ".".join(tmp[:-1])
-                        tmp_path = os.path.join(root_path, "tmp", "%s.%s" % (int(time.time() * 1000000), suffix))
-                        print(inp_path,tmp_path)
-                        #支持中文路径
-                        #os.link(inp_path, tmp_path)#win用硬链接
-                        os.symlink(inp_path, tmp_path)#linux用软链接
-                        frame = cv2.imread(tmp_path)[:, :, [2, 1, 0]]
-                        t0 = ttime()
-                        result = upscaler2x(frame, tile_mode=tile_mode,cache_mode=cache_mode,alpha=alpha)[:, :, ::-1]
-                        t1 = ttime()
-                        print(prefix, "done", t1 - t0,"tile_mode=%s"%tile_mode,cache_mode)
-                        tmp_opt_path = os.path.join(root_path, "tmp", "%s.%s" % (int(time.time() * 1000000), suffix))
-                        cv2.imwrite(tmp_opt_path, result)
-                        n=0
-                        while (1):
-                            if (n == 0):suffix = "_%sx_tile%s_cache%s_alpha%s_%s.png" % (scale, tile_mode, cache_mode, alpha,weight_name)
-                            else:suffix = "_%sx_tile%s_cache%s_alpha%s_%s_%s.png" % (scale, tile_mode, cache_mode, alpha, weight_name,n)
-                            if (os.path.exists(os.path.join(output_dir, prefix + suffix)) == False):break
-                            else:n += 1
-                        final_opt_path=os.path.join(output_dir, prefix + suffix)
-                        os.rename(tmp_opt_path,final_opt_path)
-                        os.remove(tmp_path)
+    import argparse
+    
+    # 创建解析器
+    parser = argparse.ArgumentParser(description="超分视频和图像设置")
+    
+    # 通用设置
+    parser.add_argument("--half", type=bool, help="是否开启半精度计算（True 或 False）")
+    parser.add_argument("--weight_path", type=str, help="超分模型的路径")
+    parser.add_argument("--tile_mode", type=int, help="瓦片大小")
+    parser.add_argument("--scale", type=int, help="超分倍率")
+    parser.add_argument("--device", type=str, help="计算设备（'cpu' 或 'cuda:0'）")
+    parser.add_argument("--cache_mode", type=int, help="缓存模式")
+    parser.add_argument("--alpha", type=float, help="修复程度")
+    parser.add_argument("--mode", type=str, help="超分模式")
+    
+    # 超图像设置
+    parser.add_argument("--input_dir", type=str, help="输入图像文件夹路径")
+    parser.add_argument("--output_dir", type=str, help="超分图像输出文件夹路径")
+    
+    
+    # 解析参数
+    args = parser.parse_args()
+    
+    # 获取参数值
+    half = args.half
+    weight_path = args.weight_path
+    tile_mode = args.tile_mode
+    scale = args.scale
+    device = args.device
+    cache_mode = args.cache_mode
+    alpha = args.alpha
+    input_dir = args.input_dir
+    output_dir = args.output_dir
+    mode = args.mode
+    #for weight_path, scale in [("weights_v3/up2x-latest-denoise3x.pth", 2),("weights_v3/up3x-latest-denoise3x.pth", 3),("weights_v3/up4x-latest-denoise3x.pth", 4)]:
+        #for tile_mode in [0,5]:
+            #for cache_mode in [0,1,2,3]:
+                #for alpha in [1]:
+    weight_name=weight_path.split("/")[-1].split(".")[0]
+    upscaler2x = RealWaifuUpScaler(scale, weight_path, half=True, device=device)
+                    #input_dir="%s/inputs"%root_path
+                    #output_dir="%s/output-dir-all-test"%root_path
+    os.makedirs(output_dir,exist_ok=True)
+    for name in os.listdir(input_dir):
+        print(name)
+        tmp = name.split(".")
+        inp_path = os.path.join(input_dir, name)
+        suffix = tmp[-1]
+        prefix = ".".join(tmp[:-1])
+        os.makedirs(os.path.join(root_path, "tmp"),exist_ok=True)
+        tmp_path = os.path.join(root_path, "tmp", "%s.%s" % (int(time.time() * 1000000), suffix))
+        print(inp_path,tmp_path)
+        #支持中文路径
+        #os.link(inp_path, tmp_path)#win用硬链接
+        shutil.copy2(inp_path, tmp_path)#colab不能用软链接
+        #os.symlink(inp_path, tmp_path)#linux用软链接
+        frame = cv2.imread(tmp_path)[:, :, [2, 1, 0]]
+        t0 = ttime()
+        result = upscaler2x(frame, tile_mode=tile_mode,cache_mode=cache_mode,alpha=alpha)[:, :, ::-1]
+        t1 = ttime()
+        print(prefix, "done", t1 - t0,"tile_mode=%s"%tile_mode,cache_mode)
+        tmp_opt_path = os.path.join(root_path, "tmp", "%s.%s" % (int(time.time() * 1000000), suffix))
+        cv2.imwrite(tmp_opt_path, result)
+        n=0
+        while (1):
+            if (n == 0):suffix = "_%sx_tile%s_cache%s_alpha%s_%s.png" % (scale, tile_mode, cache_mode, alpha,weight_name)
+            else:suffix = "_%sx_tile%s_cache%s_alpha%s_%s_%s.png" % (scale, tile_mode, cache_mode, alpha, weight_name,n)
+            if (os.path.exists(os.path.join(output_dir, prefix + suffix)) == False):break
+            else:n += 1
+        final_opt_path=os.path.join(output_dir, prefix + suffix)
+        os.rename(tmp_opt_path,final_opt_path)
+        os.remove(tmp_path)
