@@ -38,16 +38,17 @@ class UpScalerMT(threading.Thread):
                 break
             self.res_q.put(self.inference(tmp))
 class VideoRealWaifuUpScaler(object):
-    def __init__(self,nt,n_gpu,scale,half,tile,cache_mode,alpha,p_sleep,decode_sleep,encode_params):
+    def __init__(self,nt,n_gpu,scale,half,tile,cache_mode,alpha,p_sleep,decode_sleep,encode_params,n_cache):
         self.nt = nt
         self.n_gpu = n_gpu  # 每块GPU开nt个进程
         self.scale = scale
         self.encode_params = encode_params
         self.decode_sleep=decode_sleep
-
+        self.n_cache = n_cache
+        
         device_base = "cuda"
-        self.inp_q = Queue(self.nt * self.n_gpu * 2)  # 抽帧缓存上限帧数
-        self.res_q = Queue(self.nt * self.n_gpu * 2)  # 超分帧结果缓存上限
+        self.inp_q = Queue(self.n_cache * self.nt * self.n_gpu * 2)  # 抽帧缓存上限帧数
+        self.res_q = Queue(self.n_cache * self.nt * self.n_gpu * 2)  # 超分帧结果缓存上限
         for i in range(self.n_gpu):
             device = device_base + ":%s" % i
             #load+device初始化好当前卡的模型
@@ -71,37 +72,53 @@ class VideoRealWaifuUpScaler(object):
         now_idx = 0
         idx2res = {}
         t0 = ttime()
-        for idx, frame in enumerate(objVideoreader.iter_frames()):
-            # print(1,idx, self.inp_q.qsize(), self.res_q.qsize(), now_idx, sorted(idx2res.keys()))  ##
-            if(idx%10==0):
-                print("total frame:%s\tdecoded frames:%s"%(int(total_frame),idx))  ##
-            self.inp_q.put((idx, frame))
-            sleep(self.decode_sleep)#否则解帧会一直抢主进程的CPU到100%，不给其他线程CPU空间进行图像预处理和后处理
-            while (1):  # 取出处理好的所有结果
-                if (self.res_q.empty()): break
-                iidx, res = self.res_q.get()
-                idx2res[iidx] = res
-            # if (idx % 100 == 0):
-            while (1):  # 按照idx排序写帧
-                if (now_idx not in idx2res): break
-                writer.write_frame(idx2res[now_idx])
-                del idx2res[now_idx]
-                now_idx += 1
-        idx+=1
-        while (1):
-            # print(2,idx, self.inp_q.qsize(), self.res_q.qsize(), now_idx, sorted(idx2res.keys()))  ##
-            # if (now_idx >= idx + 1): break  # 全部帧都写入了，跳出
-            while (1):  # 取出处理好的所有结果
-                if (self.res_q.empty()): break
-                iidx, res = self.res_q.get()
-                idx2res[iidx] = res
-            while (1):  # 按照idx排序写帧
-                if (now_idx not in idx2res): break
-                writer.write_frame(idx2res[now_idx])
-                del idx2res[now_idx]
-                now_idx += 1
-            if(self.inp_q.qsize()==0 and self.res_q.qsize()==0 and idx==now_idx):break
-            sleep(0.02)
+        res_idx = 0
+        
+        while(res_idx < total_frame):
+            flag = 0
+            for idx, frame in enumerate(objVideoreader.iter_frames()):
+                # if idx>=256:
+                #     print("当前帧数：%s"%idx)
+                if idx >= res_idx:
+                    # print(1,idx, self.inp_q.qsize(), self.res_q.qsize(), now_idx, sorted(idx2res.keys()))  ##
+                    if(idx%10==0):
+                        print("total frame:%s\tdecoded frames:%s"%(int(total_frame),idx))  ##
+                    # print("inp_q:%s\t"%self.inp_q.qsize())
+                    # print("res_q:%s\t"%self.res_q.qsize())
+                    # print("idx2res:%s\t"%sys.getsizeof(idx2res))
+                    self.inp_q.put((idx, frame))
+                    sleep(self.decode_sleep)#否则解帧会一直抢主进程的CPU到100%，不给其他线程CPU空间进行图像预处理和后处理
+                    while (1):  # 取出处理好的所有结果
+                        if (self.res_q.empty()): break
+                        iidx, res = self.res_q.get()
+                        idx2res[iidx] = res
+                    # if (idx % 100 == 0):
+                    while (1):  # 按照idx排序写帧
+                        if (now_idx not in idx2res): break
+                        writer.write_frame(idx2res[now_idx])
+                        del idx2res[now_idx]
+                        now_idx += 1
+                    if idx >= min(res_idx + self.nt * self.n_gpu * 2,total_frame): 
+                        flag=1
+                        break
+            idx+=1
+            res_idx = idx
+            while (1):
+                # print(2,idx, self.inp_q.qsize(), self.res_q.qsize(), now_idx, sorted(idx2res.keys()))  ##
+                # if (now_idx >= idx + 1): break  # 全部帧都写入了，跳出
+                while (1):  # 取出处理好的所有结果
+                    if (self.res_q.empty()): break
+                    iidx, res = self.res_q.get()
+                    idx2res[iidx] = res
+                while (1):  # 按照idx排序写帧
+                    if (now_idx not in idx2res): break
+                    writer.write_frame(idx2res[now_idx])
+                    del idx2res[now_idx]
+                    now_idx += 1
+                if(self.inp_q.qsize()==0 and self.res_q.qsize()==0 and idx==now_idx):break
+                sleep(0.02)
+            if flag == 0:
+                break
         # print(3,idx, self.inp_q.qsize(), self.res_q.qsize(), now_idx, sorted(idx2res.keys()))  ##
         for _ in range(self.nt * self.n_gpu):  # 全部结果拿到后，关掉模型线程
             self.inp_q.put(None)
@@ -138,6 +155,7 @@ if __name__ == '__main__':
     parser.add_argument("--opt_path", type=str, help="输出视频路径")
     parser.add_argument("--nt", type=int, help="线程数")
     parser.add_argument("--n_gpu", type=int, help="显卡数")
+    parser.add_argument("--n_cache", type=int, help="队列倍数")
     
     # 解析参数
     args = parser.parse_args()
@@ -158,7 +176,7 @@ if __name__ == '__main__':
     opt_path = args.opt_path
     input_dir = args.input_dir
     output_dir = args.output_dir
-    
+    n_cache = args.n_cache
     
     
     p_sleep=(0.005,0.012)
@@ -174,11 +192,11 @@ if __name__ == '__main__':
     for name in os.listdir(inp_path):
         
         tmp_path = "%s/tmp_video/%s"% (root_path , name)
-        tmp_inp_path = "%s%s"% (inp_path, name)
-        tmp_opt_path = "%s%s"% (opt_path, name)
+        tmp_inp_path = "%s/%s"% (inp_path, name)
+        tmp_opt_path = "%s/%s"% (opt_path, name)
         print(tmp_path)
         print(tmp_inp_path)
         print(tmp_opt_path)
-        video_upscaler=VideoRealWaifuUpScaler(nt,n_gpu,scale,half,tile,cache_mode,alpha,p_sleep,decode_sleep,encode_params)
+        video_upscaler=VideoRealWaifuUpScaler(nt,n_gpu,scale,half,tile,cache_mode,alpha,p_sleep,decode_sleep,encode_params,n_cache)
         video_upscaler(tmp_inp_path,tmp_opt_path,tmp_path)
         
