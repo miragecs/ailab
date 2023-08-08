@@ -6,6 +6,9 @@ from moviepy.video.io.ffmpeg_writer import FFMPEG_VideoWriter
 from moviepy.editor import VideoFileClip
 from upcunet_v3 import RealWaifuUpScaler
 from time import time as ttime,sleep
+import os,sys
+root_path=os.path.abspath('.')
+sys.path.append(root_path)
 class UpScalerMT(threading.Thread):
     def __init__(self, inp_q, res_q, device, model,p_sleep,nt,tile,cache_mode,alpha):
         threading.Thread.__init__(self)
@@ -53,14 +56,14 @@ class VideoRealWaifuUpScaler(object):
                 upscaler = UpScalerMT(self.inp_q, self.res_q, device, model,p_sleep,self.nt,tile,cache_mode,alpha)
                 upscaler.start()
 
-    def __call__(self, inp_path,opt_path):
+    def __call__(self, inp_path,opt_path,tmp_path):
         objVideoreader = VideoFileClip(filename=inp_path)
         w,h=objVideoreader.reader.size
         fps=objVideoreader.reader.fps
         total_frame=objVideoreader.reader.nframes
         if_audio=objVideoreader.audio
         if(if_audio):
-            tmp_audio_path="%s.m4a"%inp_path
+            tmp_audio_path="%s.m4a"%tmp_path
             objVideoreader.audio.write_audiofile(tmp_audio_path,codec="aac")
             writer = FFMPEG_VideoWriter(opt_path, (w * self.scale, h * self.scale), fps, ffmpeg_params=self.encode_params,audiofile=tmp_audio_path)  # slower#medium
         else:
@@ -166,5 +169,16 @@ if __name__ == '__main__':
     #    inp_path = "/content/drive/MyDrive/CUGAN/ailab/Real-CUGAN/inputs/1.mp4"
     #if opt_path == '':
     #    opt_path = "/content/drive/MyDrive/CUGAN/ailab/Real-CUGAN/input_dir/1.mp4"
-    video_upscaler=VideoRealWaifuUpScaler(nt,n_gpu,scale,half,tile,cache_mode,alpha,p_sleep,decode_sleep,encode_params)
-    video_upscaler(inp_path,opt_path)
+    os.makedirs("%s/tmp_video"%root_path,exist_ok=True)
+    os.makedirs("%s/%s"% (root_path, opt_path),exist_ok=True)
+    for name in os.listdir(inp_path):
+        
+        tmp_path = "%s/tmp_video/%s"% (root_path , name)
+        tmp_inp_path = "%s%s"% (inp_path, name)
+        tmp_opt_path = "%s%s"% (opt_path, name)
+        print(tmp_path)
+        print(tmp_inp_path)
+        print(tmp_opt_path)
+        video_upscaler=VideoRealWaifuUpScaler(nt,n_gpu,scale,half,tile,cache_mode,alpha,p_sleep,decode_sleep,encode_params)
+        video_upscaler(tmp_inp_path,tmp_opt_path,tmp_path)
+        
