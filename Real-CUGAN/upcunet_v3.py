@@ -1338,7 +1338,9 @@ if __name__ == "__main__":
     upscaler2x = RealWaifuUpScaler(scale, weight_path, half=True, device=device)
                     #input_dir="%s/inputs"%root_path
                     #output_dir="%s/output-dir-all-test"%root_path
+    os.makedirs(input_dir,exist_ok=True)
     os.makedirs(output_dir,exist_ok=True)
+    os.makedirs("%s/tmp",exist_ok=True)
     for name in os.listdir(input_dir):
         print(name)
         tmp = name.split(".")
