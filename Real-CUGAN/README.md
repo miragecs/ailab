@@ -20,7 +20,7 @@ Real Cascade U-Nets for Anime Image Super Resolution
 2022-08-09:[Squirrel Anime Enhance(WIN-GUI，中文+英文)](https://github.com/Justin62628/Squirrel-RIFE/releases/tag/v3.20.1)支持RealCUGAN-Pro了，支持视频超分，导出常见视频格式。
 
 fork:
-2023-08-08：在colab上运行。
+2023-08-08：在colab上运行。超分视频改成直接从文件夹获取所有视频。
 https://colab.research.google.com/drive/1YSR0xT56srJ4bO2NDHNpdWgHOfOkV76L?usp=sharing
 
 访问这个网页体验demo，https://real-cugan.animesales.xyz/<br>
