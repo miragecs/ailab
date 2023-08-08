@@ -109,8 +109,64 @@ class VideoRealWaifuUpScaler(object):
         print(inp_path,"done,time cost:",t1 - t0)
 
 if __name__ == '__main__':
-    from config import half, model_path2, model_path3, model_path4, tile, scale, device, encode_params, p_sleep, decode_sleep, nt, n_gpu,cache_mode,alpha
-    inp_path = "432126871-clip6s.mp4"
-    opt_path = "432126871-clip6s-2x.mp4"
+    #from config import half, model_path2, model_path3, model_path4, tile, scale, device, encode_params, p_sleep, decode_sleep, nt, n_gpu,cache_mode,alpha,inp_path,opt_path
+    import argparse
+
+    # 创建解析器
+    parser = argparse.ArgumentParser(description="超分视频和图像设置")
+    
+    # 通用设置
+    parser.add_argument("--half", type=bool, help="是否开启半精度计算（True 或 False）")
+    parser.add_argument("--model_path2", type=str, help="2倍超分模型的路径")
+    parser.add_argument("--model_path3", type=str, help="3倍超分模型的路径")
+    parser.add_argument("--model_path4", type=str, help="4倍超分模型的路径")
+    parser.add_argument("--tile", type=int, help="瓦片大小")
+    parser.add_argument("--scale", type=int, help="超分倍率")
+    parser.add_argument("--device", type=str, help="计算设备（'cpu' 或 'cuda:0'）")
+    parser.add_argument("--nt", type=int, help="线程数")
+    parser.add_argument("--n_gpu", type=int, help="显卡数")
+    parser.add_argument("--cache_mode", type=int, help="缓存模式")
+    parser.add_argument("--alpha", type=float, help="修复程度")
+    
+    # 超图像设置
+    parser.add_argument("--input_dir", type=str, help="输入图像文件夹路径")
+    parser.add_argument("--output_dir", type=str, help="超分图像输出文件夹路径")
+    
+    # 超视频设置
+    parser.add_argument("--inp_path", type=str, help="输入视频路径")
+    parser.add_argument("--opt_path", type=str, help="输出视频路径")
+    parser.add_argument("--nt", type=int, help="线程数")
+    parser.add_argument("--n_gpu", type=int, help="显卡数")
+    
+    # 解析参数
+    args = parser.parse_args()
+    
+    # 获取参数值
+    half = args.half
+    model_path2 = args.model_path2
+    model_path3 = args.model_path3
+    model_path4 = args.model_path4
+    tile = args.tile
+    scale = args.scale
+    device = args.device
+    nt = args.nt
+    n_gpu = args.n_gpu
+    cache_mode = args.cache_mode
+    alpha = args.alpha
+    inp_path = args.inp_path
+    opt_path = args.opt_path
+    input_dir = args.input_dir
+    output_dir = args.output_dir
+    
+    
+    
+    p_sleep=(0.005,0.012)
+    decode_sleep=0.002
+    #编码参数，不懂别乱动;通俗来讲，crf变低=高码率高质量，slower=低编码速度高质量+更吃CPU，CPU不够应该调低级别，比如slow，medium，fast，faster
+    encode_params=['-crf', '21', '-preset', 'medium']
+    #if inp_path == '':
+    #    inp_path = "/content/drive/MyDrive/CUGAN/ailab/Real-CUGAN/inputs/1.mp4"
+    #if opt_path == '':
+    #    opt_path = "/content/drive/MyDrive/CUGAN/ailab/Real-CUGAN/input_dir/1.mp4"
     video_upscaler=VideoRealWaifuUpScaler(nt,n_gpu,scale,half,tile,cache_mode,alpha,p_sleep,decode_sleep,encode_params)
     video_upscaler(inp_path,opt_path)
