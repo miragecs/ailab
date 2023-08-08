@@ -123,8 +123,6 @@ if __name__ == '__main__':
     parser.add_argument("--tile", type=int, help="瓦片大小")
     parser.add_argument("--scale", type=int, help="超分倍率")
     parser.add_argument("--device", type=str, help="计算设备（'cpu' 或 'cuda:0'）")
-    parser.add_argument("--nt", type=int, help="线程数")
-    parser.add_argument("--n_gpu", type=int, help="显卡数")
     parser.add_argument("--cache_mode", type=int, help="缓存模式")
     parser.add_argument("--alpha", type=float, help="修复程度")
     
