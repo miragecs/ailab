@@ -98,7 +98,7 @@ class VideoRealWaifuUpScaler(object):
                         writer.write_frame(idx2res[now_idx])
                         del idx2res[now_idx]
                         now_idx += 1
-                    if idx >= min(res_idx + self.nt * self.n_gpu * 2,total_frame): 
+                    if idx >= min(self.n_cache * res_idx + self.nt * self.n_gpu * 2,total_frame): 
                         flag=1
                         break
             idx+=1
