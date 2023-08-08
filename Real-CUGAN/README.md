@@ -19,6 +19,10 @@ Real Cascade U-Nets for Anime Image Super Resolution
 2022-07-28:[NCNN版本](https://github.com/nihui/realcugan-ncnn-vulkan)支持pro模型了，<br>
 2022-08-09:[Squirrel Anime Enhance(WIN-GUI，中文+英文)](https://github.com/Justin62628/Squirrel-RIFE/releases/tag/v3.20.1)支持RealCUGAN-Pro了，支持视频超分，导出常见视频格式。
 
+fork:
+2023-08-08：在colab上运行。
+https://colab.research.google.com/drive/1YSR0xT56srJ4bO2NDHNpdWgHOfOkV76L?usp=sharing
+
 访问这个网页体验demo，https://real-cugan.animesales.xyz/<br>
 如果Real-CUGAN对您的项目有帮助，可以⭐与分享一波，感谢~
 
